@@ -100,7 +100,6 @@ layout: default
 <!-- 
 まずはPHPStanについてあまり知らないという方もいらっしゃると思いますので、PHPStanについて簡単に紹介させてください。
 PHPStanは、PHPの静的解析ツールです。コードを実行する前に潜在的なバグや型エラーを検出し、コードの品質向上に役立ちます。
-「Find bugs without running your code」というキャッチフレーズが表しているように、実際にコードを実行することなく、バグを見つけることができる優れたツールです。
  -->
 
 ---
@@ -193,7 +192,7 @@ layout: default
 
 <div class="relative">
 
-```php {|17}
+```php {||17}
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
@@ -248,7 +247,7 @@ layout: default
 
 <div class="relative">
 
-```php {|9|6}
+```php {||9|6}
 class UserService
 {
     /**
@@ -309,7 +308,7 @@ layout: default
 
 <div class="relative">
 
-```php {|8}
+```php {||8}
 class UserManagementService
 {
     /**
@@ -361,129 +360,56 @@ PHPStanはこのような「nullの可能性がある変数に対してメソッ
 layout: default
 ---
 
-<div class="space-y-8">
+# Collection処理の課題と解決策
 
-<div class="text-center mb-8">
-  <h2 class="text-2xl font-bold text-gradient bg-gradient-to-r from-orange-400 to-red-600">
-    複雑なCollection処理での課題
-  </h2>
-</div>
+<div class="grid grid-cols-2 gap-4">
 
-<div class="relative">
+<div v-click>
 
-```php {|6,7,8,9,10,11,12}
-class UserAnalyzer
+## ⚠️ 課題：型推論の限界
+
+```php {6-8}
+public function analyzeUsers($users)
 {
-    public function analyzeActiveUsers(Collection $users): array
-    {
-        return $users
-            ->filter(fn($user) => $user->is_active)
-            ->groupBy(fn($user) => $user->department)
-            ->map(fn($group) => [
-                'count' => $group->count(),
-                'average_age' => $group->avg('age'),
-                'names' => $group->pluck('name')->toArray()
-            ])
-            ->toArray();
-    }
+    return $users
+        ->filter(fn($user) => $user->is_active)
+        ->groupBy(fn($user) => $user->department)
+        ->map(fn($group) => [
+            'count' => $group->count(),
+            'average_age' => $group->avg('age')
+        ]);
 }
 ```
 
-<div v-click="1" class="absolute top-16 right-8 w-80 p-4 bg-orange-100 dark:bg-orange-900/20 rounded-xl border border-orange-300 dark:border-orange-500/30 shadow-lg">
-  <div class="relative">
-    <div class="absolute -left-4 top-6 w-0 h-0 border-t-8 border-b-8 border-r-16 border-transparent border-r-orange-100 dark:border-r-orange-900/20"></div>
-    <div class="text-sm font-medium text-orange-700 dark:text-orange-300 mb-2">⚠️ 型推論の限界</div>
-    <div class="text-sm text-orange-600 dark:text-orange-400">
-      Collectionメソッドチェーンでは<br/>
-      型情報が失われやすく、多くが<br/>
-      <code class="bg-orange-200 dark:bg-orange-800 px-1 rounded text-xs">mixed</code> 型として扱われます
-    </div>
-  </div>
+<div class="mt-2 text-sm text-orange-500">
+Collectionチェーンで型情報が失われやすい
 </div>
 
 </div>
 
-<div v-click="2" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md mx-4 border border-yellow-200 dark:border-yellow-700">
-    <h3 class="text-xl font-bold text-yellow-800 dark:text-yellow-200 mb-4 text-center">💡 なぜこの問題が発生するのか</h3>
-    <ul class="space-y-3 text-base text-gray-700 dark:text-gray-300">
-      <li class="flex items-start">
-        <span class="text-yellow-600 mr-2">•</span>
-        <span>Collectionメソッドチェーンの動的な性質</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-yellow-600 mr-2">•</span>
-        <span>各段階での型推論の困難さ</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-yellow-600 mr-2">•</span>
-        <span>クロージャ内での変数型の推論限界</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-yellow-600 mr-2">•</span>
-        <span>複雑な変換処理での型情報の損失</span>
-      </li>
-    </ul>
-  </div>
-</div>
+<div v-click>
 
-</div>
+## ✅ 解決策：型アノテーション
 
-<!-- 
-ここからは、より複雑な問題について説明します。Laravelでは、Collectionクラスを使った複雑なデータ処理が頻繁に行われますが、これが静的解析の大きな課題となることがあります。
-
-このコードは、ユーザーのコレクションを受け取って、アクティブなユーザーを抽出し、部署ごとにグループ化して、各グループの統計情報を計算する処理です。非常に実用的なコードですが、PHPStanにとっては難しい処理です。
-
-なぜこの問題が発生するのでしょうか。Collectionのメソッドチェーンは非常に柔軟で強力ですが、その分、各段階でどのような型のデータが流れているかを静的に解析するのが困難になります。特に、filter、map、groupByなどのメソッドを組み合わせると、型情報が失われやすくなってしまいます。
- -->
-
-
----
-layout: default
----
-
-<div class="space-y-8">
-
-<div class="text-center mb-8">
-  <h2 class="text-2xl font-bold text-gradient bg-gradient-to-r from-green-400 to-emerald-600">
-    解決策：詳細な型アノテーション
-  </h2>
-</div>
-
-<div class="relative">
-
-```php {|3,4,5|10,11,12}
-class UserAnalyzer
+```php {1-4}
+/**
+ * @param Collection<int, User> $users
+ * @return Collection<string, array{count: int, average_age: float}>
+ */
+public function analyzeUsers(Collection $users)
 {
-    /**
-     * @param Collection<int, User> $users
-     * @return array<string, array{count: int, average_age: float, names: array<string>}>
-     */
-    public function analyzeActiveUsers(Collection $users): array
-    {
-        return $users
-            ->filter(fn(User $user) => $user->is_active)
-            ->groupBy(fn(User $user) => $user->department)
-            ->map(fn(Collection $group) => [
-                'count' => $group->count(),
-                'average_age' => $group->avg('age'),
-                'names' => $group->pluck('name')->toArray()
-            ])
-            ->toArray();
-    }
+    return $users
+        ->filter(fn(User $user) => $user->is_active)
+        ->groupBy(fn(User $user) => $user->department)
+        ->map(fn(Collection $group) => [
+            'count' => $group->count(),
+            'average_age' => $group->avg('age')
+        ]);
 }
 ```
 
-<div v-click="2" class="absolute top-20 right-8 w-80 p-4 bg-green-100 dark:bg-green-900/20 rounded-xl border border-green-300 dark:border-green-500/30 shadow-lg">
-  <div class="relative">
-    <div class="absolute -left-4 top-6 w-0 h-0 border-t-8 border-b-8 border-r-16 border-transparent border-r-green-100 dark:border-r-green-900/20"></div>
-    <div class="text-sm font-medium text-green-700 dark:text-green-300 mb-2">✅ 型アノテーションで解決</div>
-    <div class="text-sm text-green-600 dark:text-green-400">
-      詳細な型情報により<br/>
-      Larastanが各メソッドチェーンの<br/>
-      型を正確に追跡できます
-    </div>
-  </div>
+<div class="mt-2 text-sm text-green-500">
+PHPDocで詳細な型情報を追加
 </div>
 
 </div>
@@ -491,11 +417,11 @@ class UserAnalyzer
 </div>
 
 <!-- 
-この問題の解決策は、詳細な型アノテーションを追加することです。
+Laravelでよく使うCollectionのメソッドチェーンは、PHPStanにとって型推論が難しい部分です。
 
-PHPDocコメントで、引数と戻り値の型を詳細に指定します。Collection<int, User>のように、コレクションの中身の型まで明示的に指定することで、Larastanがメソッドチェーンの各段階での型を正確に追跡できるようになります。
+左側のコードでは、filter、groupBy、mapと連鎖させていますが、各段階でどんな型が流れているか静的に解析するのが困難です。
 
-また、クロージャの引数にも型ヒントを追加することで、さらに精密な型推論が可能になります。このように、少しの手間をかけるだけで、複雑なCollection処理でも型安全性を保つことができます。
+解決策は右側のように、PHPDocコメントで詳細な型アノテーションを追加することです。Collection<int, User>のように、中身の型まで明示することで、Larastanが正確に型を追跡できるようになります。
  -->
 
 ---
